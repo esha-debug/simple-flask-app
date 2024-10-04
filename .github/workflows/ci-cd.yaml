@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build:
@@ -24,7 +24,9 @@ jobs:
         pip install -r requirements.txt
 
     - name: Build Docker image
-      run: docker build -t hackler254/simple-flask-app:latest .
+      run: 
+          docker build -t hackler254/simple-flask-app:latest .
+          docker push hackler254/simple-flask-app:latest
 
     - name: Log in to DockerHub
       run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -39,9 +41,34 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Deploy to Kubernetes
-      uses: azure/k8s-deploy@v2
-      with:
-        manifests: |
-          k8s/app-deployment.yaml
-         
+    - name: Install Kind
+      run: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+
+    - name: Set up Kubernetes cluster with Kind
+      run: kind create cluster --name kind
+
+    - name: Install kubectl
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y kubectl
+
+    - name: Get cluster info
+      run: kubectl cluster-info --context kind
+
+    - name: Load Docker image into Kind
+      run: kind load docker-image hackler254/simple-flask-app:latest --name kind
+
+    - name: Deploy to Kind cluster
+      run: |
+        kubectl apply -f k8s/app-deployment.yaml
+        
+
+    - name: Get Service info
+      run: kubectl get services
+
+    - name: Clean up Kind cluster
+      if: always()
+      run: kind delete cluster --name kind
