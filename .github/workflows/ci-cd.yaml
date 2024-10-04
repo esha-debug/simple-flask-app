@@ -13,23 +13,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+     - name: Log in to DockerHub
+       run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
     - name: Build Docker image
       run: 
           docker build -t hackler254/simple-flask-app:latest .
       
-
-    - name: Log in to DockerHub
-      run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
     - name: Push to DockerHub
       run: docker push hackler254/simple-flask-app:latest
@@ -54,9 +44,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y kubectl
+        
 
     - name: Load Docker image into Kind
-      run: kind load docker-image hackler254/simple-flask-app:latest --name kind
+      run: |
+        sudo docker pull hackler254/simple-flask-app:latest
+        kind load docker-image hackler254/simple-flask-app:latest --name kind
 
     - name: Deploy to Kind cluster
       run: |
